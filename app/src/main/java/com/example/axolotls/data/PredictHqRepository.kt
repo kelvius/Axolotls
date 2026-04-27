@@ -1,5 +1,6 @@
 package com.example.axolotls.data
 
+import com.example.axolotls.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -16,7 +17,7 @@ class PredictHqRepository(
     private val api: PredictHqApiService = PredictHqApiService.create(API_TOKEN)
 ) {
     companion object {
-        const val API_TOKEN = "5HAEvPUYoK573hXpQACXnCc2OzCyvI_qDkL-BpXC"
+        val API_TOKEN: String get() = BuildConfig.PREDICTHQ_API_KEY
 
         /** Categories we care about */
         const val CATEGORIES = "school-holidays,public-holidays,severe-weather,observances"

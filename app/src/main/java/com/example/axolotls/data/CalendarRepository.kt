@@ -1,5 +1,6 @@
 package com.example.axolotls.data
 
+import com.example.axolotls.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -41,7 +42,7 @@ class CalendarRepository(
     private val predictHqRepo: PredictHqRepository = PredictHqRepository()
 ) {
     companion object {
-        const val API_KEY = "AIzaSyAVijz7I6Y5SOK5bVNt2onIRkkcrjko_yA"
+        val API_KEY: String get() = BuildConfig.MAPS_API_KEY
 
         // Winnipeg coordinates for proximity check
         private const val WINNIPEG_LAT = 49.8951
