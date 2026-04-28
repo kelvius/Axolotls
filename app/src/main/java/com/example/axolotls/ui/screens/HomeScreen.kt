@@ -1,7 +1,9 @@
 package com.example.axolotls.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Geocoder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +36,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +74,9 @@ import com.example.axolotls.data.FavoritesManager
 import com.google.android.gms.location.LocationServices
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class Event(
     val id: Int,
@@ -442,12 +449,22 @@ fun NearbyEventsScreen(
     paddingValues: PaddingValues,
     onNavigateToMap: (lat: Double, lng: Double, title: String) -> Unit = { _, _, _ -> }
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var currentPage by remember { mutableIntStateOf(0) }
     var selectedEvent by remember { mutableStateOf<Event?>(null) }
+    var isGeocoding by remember { mutableStateOf(false) }
+    var geocodeError by remember { mutableStateOf(false) }
 
     selectedEvent?.let { event ->
+        val hasCoords = event.latitude != null && event.longitude != null
+        val hasLocation = event.location.isNotBlank()
         AlertDialog(
-            onDismissRequest = { selectedEvent = null },
+            onDismissRequest = {
+                selectedEvent = null
+                isGeocoding = false
+                geocodeError = false
+            },
             icon = {
                 Icon(
                     imageVector = Icons.Default.LocationOn,
@@ -517,22 +534,57 @@ fun NearbyEventsScreen(
                             )
                         }
                     }
+                    if (geocodeError) {
+                        Text(
+                            text = "Location could not be found on map",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             },
             confirmButton = {
-                if (event.latitude != null && event.longitude != null) {
+                if (hasCoords || hasLocation) {
                     TextButton(
+                        enabled = !isGeocoding,
                         onClick = {
-                            onNavigateToMap(event.latitude, event.longitude, event.title)
-                            selectedEvent = null
+                            if (hasCoords) {
+                                onNavigateToMap(event.latitude!!, event.longitude!!, event.title)
+                                selectedEvent = null
+                            } else {
+                                isGeocoding = true
+                                geocodeError = false
+                                coroutineScope.launch {
+                                    val coords = geocodeLocation(context, event.location)
+                                    if (coords != null) {
+                                        onNavigateToMap(coords.first, coords.second, event.title)
+                                        selectedEvent = null
+                                    } else {
+                                        geocodeError = true
+                                    }
+                                    isGeocoding = false
+                                }
+                            }
                         }
                     ) {
-                        Text("View on Map")
+                        if (isGeocoding) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Text("View on Map")
+                        }
                     }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { selectedEvent = null }) {
+                TextButton(onClick = {
+                    selectedEvent = null
+                    isGeocoding = false
+                    geocodeError = false
+                }) {
                     Text("Close")
                 }
             }
@@ -650,7 +702,11 @@ fun NearbyEventsScreen(
                     event = event,
                     isFavorite = favoriteIds.contains(event.id),
                     onFavoriteClick = { onFavoriteToggle(event.id) },
-                    onCardClick = { selectedEvent = event }
+                    onCardClick = {
+                        selectedEvent = event
+                        isGeocoding = false
+                        geocodeError = false
+                    }
                 )
             }
         }
@@ -828,3 +884,14 @@ private fun formatDistance(km: Double): String {
         "${"%.1f".format(km)} km away"
     }
 }
+
+private suspend fun geocodeLocation(context: Context, locationName: String): Pair<Double, Double>? =
+    withContext(Dispatchers.IO) {
+        try {
+            @Suppress("DEPRECATION")
+            val results = Geocoder(context).getFromLocationName(locationName, 1)
+            results?.firstOrNull()?.let { Pair(it.latitude, it.longitude) }
+        } catch (_: Exception) {
+            null
+        }
+    }

@@ -44,12 +44,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.content.Context
+import android.location.Geocoder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +66,9 @@ import androidx.compose.ui.unit.sp
 import com.example.axolotls.data.CalendarRepository
 import com.example.axolotls.data.CommunityEvent
 import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val PAGE_SIZE = 10
 
@@ -80,6 +86,9 @@ fun CommunityEventsScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var currentPage by remember { mutableIntStateOf(0) }
     var selectedEvent by remember { mutableStateOf<CommunityEvent?>(null) }
+    var isGeocoding by remember { mutableStateOf(false) }
+    var geocodeError by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         // Try to get user location for PredictHQ proximity search
@@ -161,8 +170,14 @@ fun CommunityEventsScreen(
 
     // Event detail dialog
     selectedEvent?.let { event ->
+        val hasCoords = event.latitude != null && event.longitude != null
+        val hasLocation = event.location.isNotBlank()
         AlertDialog(
-            onDismissRequest = { selectedEvent = null },
+            onDismissRequest = {
+                selectedEvent = null
+                isGeocoding = false
+                geocodeError = false
+            },
             icon = {
                 Icon(
                     imageVector = Icons.Default.CalendarToday,
@@ -222,22 +237,57 @@ fun CommunityEventsScreen(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                         fontWeight = FontWeight.Medium
                     )
+                    if (geocodeError) {
+                        Text(
+                            text = "Location could not be found on map",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             },
             confirmButton = {
-                if (event.latitude != null && event.longitude != null) {
+                if (hasCoords || hasLocation) {
                     TextButton(
+                        enabled = !isGeocoding,
                         onClick = {
-                            onNavigateToMap(event.latitude, event.longitude, event.title)
-                            selectedEvent = null
+                            if (hasCoords) {
+                                onNavigateToMap(event.latitude!!, event.longitude!!, event.title)
+                                selectedEvent = null
+                            } else {
+                                isGeocoding = true
+                                geocodeError = false
+                                coroutineScope.launch {
+                                    val coords = geocodeLocation(context, event.location)
+                                    if (coords != null) {
+                                        onNavigateToMap(coords.first, coords.second, event.title)
+                                        selectedEvent = null
+                                    } else {
+                                        geocodeError = true
+                                    }
+                                    isGeocoding = false
+                                }
+                            }
                         }
                     ) {
-                        Text("View on Map")
+                        if (isGeocoding) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Text("View on Map")
+                        }
                     }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { selectedEvent = null }) {
+                TextButton(onClick = {
+                    selectedEvent = null
+                    isGeocoding = false
+                    geocodeError = false
+                }) {
                     Text("Close")
                 }
             }
@@ -426,7 +476,11 @@ fun CommunityEventsScreen(
                             event = event,
                             isFavorite = favoriteIds.contains(event.id),
                             onFavoriteClick = { onFavoriteToggle(event.id) },
-                            onCardClick = { selectedEvent = event }
+                            onCardClick = {
+                            selectedEvent = event
+                            isGeocoding = false
+                            geocodeError = false
+                        }
                         )
                     }
                 }
@@ -642,3 +696,14 @@ fun CommunityEventCard(
         }
     }
 }
+
+private suspend fun geocodeLocation(context: Context, locationName: String): Pair<Double, Double>? =
+    withContext(Dispatchers.IO) {
+        try {
+            @Suppress("DEPRECATION")
+            val results = Geocoder(context).getFromLocationName(locationName, 1)
+            results?.firstOrNull()?.let { Pair(it.latitude, it.longitude) }
+        } catch (_: Exception) {
+            null
+        }
+    }
