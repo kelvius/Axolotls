@@ -657,19 +657,35 @@ fun CommunityEventCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Date/time row
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = if (event.isAllDay) Icons.Default.CalendarToday else Icons.Default.AccessTime,
-                    contentDescription = "Time",
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(4.dp))
+            // Date/time row with source label on the right
+            val sourceLabel = when {
+                event.id.startsWith("phq_") -> "PredictHQ"
+                event.htmlLink != null -> "Google Calendar"
+                else -> "Local"
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (event.isAllDay) Icons.Default.CalendarToday else Icons.Default.AccessTime,
+                        contentDescription = "Time",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = event.startTime,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
                 Text(
-                    text = event.startTime,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    text = sourceLabel,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                 )
             }
 
