@@ -85,7 +85,9 @@ class PredictHqRepository(
                     endTime = formatPhqDate(event.end),
                     calendarName = categoryBadge(event.category),
                     isAllDay = isAllDayEvent(event),
-                    htmlLink = null
+                    htmlLink = null,
+                    latitude = event.location?.getOrNull(1),
+                    longitude = event.location?.getOrNull(0)
                 )
             } ?: emptyList()
         } catch (e: Exception) {

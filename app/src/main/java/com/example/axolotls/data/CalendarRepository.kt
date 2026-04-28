@@ -26,7 +26,9 @@ data class CommunityEvent(
     val endTime: String,
     val calendarName: String,
     val isAllDay: Boolean,
-    val htmlLink: String? = null
+    val htmlLink: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
 
 /**

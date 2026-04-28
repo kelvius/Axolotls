@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -44,6 +45,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -106,6 +108,15 @@ fun HomeScreen(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var searchQuery by remember { mutableStateOf("") }
+    var mapFocusLat by remember { mutableStateOf<Double?>(null) }
+    var mapFocusLng by remember { mutableStateOf<Double?>(null) }
+    var mapFocusTitle by remember { mutableStateOf<String?>(null) }
+    val navigateToMap: (Double, Double, String) -> Unit = { lat, lng, title ->
+        mapFocusLat = lat
+        mapFocusLng = lng
+        mapFocusTitle = title
+        selectedTab = 1
+    }
 
     val context = LocalContext.current
     val favoritesManager = remember { FavoritesManager(context) }
@@ -203,7 +214,8 @@ fun HomeScreen(
                         onFavoriteToggle = { id ->
                             communityFavoriteIds = favoritesManager.toggleCommunityFavorite(id)
                         },
-                        onLogout = onLogout
+                        onLogout = onLogout,
+                        onNavigateToMap = navigateToMap
                     )
                 }
             }
@@ -214,7 +226,11 @@ fun HomeScreen(
                         .fillMaxSize()
                         .padding(paddingValues)
                 ) {
-                    MapScreen()
+                    MapScreen(
+                        focusLat = mapFocusLat,
+                        focusLng = mapFocusLng,
+                        focusTitle = mapFocusTitle
+                    )
                 }
             }
             2 -> {
@@ -244,7 +260,8 @@ fun HomeScreen(
                         nearbyFavoriteIds = favoritesManager.toggleNearbyFavorite(id)
                     },
                     onLogout = onLogout,
-                    paddingValues = paddingValues
+                    paddingValues = paddingValues,
+                    onNavigateToMap = navigateToMap
                 )
             }
         }
@@ -422,9 +439,105 @@ fun NearbyEventsScreen(
     favoriteIds: Set<Int>,
     onFavoriteToggle: (Int) -> Unit,
     onLogout: () -> Unit,
-    paddingValues: PaddingValues
+    paddingValues: PaddingValues,
+    onNavigateToMap: (lat: Double, lng: Double, title: String) -> Unit = { _, _, _ -> }
 ) {
     var currentPage by remember { mutableIntStateOf(0) }
+    var selectedEvent by remember { mutableStateOf<Event?>(null) }
+
+    selectedEvent?.let { event ->
+        AlertDialog(
+            onDismissRequest = { selectedEvent = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            title = {
+                Text(
+                    text = event.title,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (event.description.isNotBlank()) {
+                        Text(
+                            text = event.description,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = event.date,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                    if (event.location.isNotBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = event.location,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                    if (event.distanceKm != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.NearMe,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.tertiary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = formatDistance(event.distanceKm),
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                if (event.latitude != null && event.longitude != null) {
+                    TextButton(
+                        onClick = {
+                            onNavigateToMap(event.latitude, event.longitude, event.title)
+                            selectedEvent = null
+                        }
+                    ) {
+                        Text("View on Map")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedEvent = null }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
 
     val filteredEvents = if (searchQuery.isEmpty()) {
         events
@@ -536,7 +649,8 @@ fun NearbyEventsScreen(
                 NearbyEventCard(
                     event = event,
                     isFavorite = favoriteIds.contains(event.id),
-                    onFavoriteClick = { onFavoriteToggle(event.id) }
+                    onFavoriteClick = { onFavoriteToggle(event.id) },
+                    onCardClick = { selectedEvent = event }
                 )
             }
         }
@@ -560,10 +674,13 @@ fun NearbyEventsScreen(
 fun NearbyEventCard(
     event: Event,
     isFavorite: Boolean,
-    onFavoriteClick: () -> Unit
+    onFavoriteClick: () -> Unit,
+    onCardClick: () -> Unit = {}
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCardClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
