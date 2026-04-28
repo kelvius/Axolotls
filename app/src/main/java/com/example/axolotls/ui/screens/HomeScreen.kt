@@ -109,6 +109,7 @@ val dummyEvents = listOf(
     Event(5, "Sports Day", "May 10, 2026", "Sports Complex", "Community sports activities for all ages")
 )
 
+// HomeScreen: main container holding the bottom nav and all tab screens
 @Composable
 fun HomeScreen(
     onLogout: () -> Unit
