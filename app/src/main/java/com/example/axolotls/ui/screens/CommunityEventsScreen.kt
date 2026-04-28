@@ -70,7 +70,8 @@ private const val PAGE_SIZE = 10
 fun CommunityEventsScreen(
     favoriteIds: Set<String> = emptySet(),
     onFavoriteToggle: (String) -> Unit = {},
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    onNavigateToMap: (lat: Double, lng: Double, title: String) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     val repository = remember { CalendarRepository() }
@@ -78,6 +79,7 @@ fun CommunityEventsScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var currentPage by remember { mutableIntStateOf(0) }
+    var selectedEvent by remember { mutableStateOf<CommunityEvent?>(null) }
 
     LaunchedEffect(Unit) {
         // Try to get user location for PredictHQ proximity search
@@ -152,6 +154,91 @@ fun CommunityEventsScreen(
             dismissButton = {
                 TextButton(onClick = { showLogoutConfirm = false }) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Event detail dialog
+    selectedEvent?.let { event ->
+        AlertDialog(
+            onDismissRequest = { selectedEvent = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            title = {
+                Text(
+                    text = event.title,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (event.description.isNotBlank()) {
+                        Text(
+                            text = event.description,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (event.isAllDay) Icons.Default.CalendarToday else Icons.Default.AccessTime,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = event.startTime,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                    if (event.location.isNotBlank() && event.location != "Winnipeg") {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = event.location,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                    Text(
+                        text = event.calendarName,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            },
+            confirmButton = {
+                if (event.latitude != null && event.longitude != null) {
+                    TextButton(
+                        onClick = {
+                            onNavigateToMap(event.latitude, event.longitude, event.title)
+                            selectedEvent = null
+                        }
+                    ) {
+                        Text("View on Map")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedEvent = null }) {
+                    Text("Close")
                 }
             }
         )
@@ -338,7 +425,8 @@ fun CommunityEventsScreen(
                         CommunityEventCard(
                             event = event,
                             isFavorite = favoriteIds.contains(event.id),
-                            onFavoriteClick = { onFavoriteToggle(event.id) }
+                            onFavoriteClick = { onFavoriteToggle(event.id) },
+                            onCardClick = { selectedEvent = event }
                         )
                     }
                 }
@@ -426,10 +514,13 @@ fun PaginationBar(
 fun CommunityEventCard(
     event: CommunityEvent,
     isFavorite: Boolean = false,
-    onFavoriteClick: () -> Unit = {}
+    onFavoriteClick: () -> Unit = {},
+    onCardClick: () -> Unit = {}
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCardClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface

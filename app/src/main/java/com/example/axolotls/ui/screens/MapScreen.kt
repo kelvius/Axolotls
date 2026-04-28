@@ -26,10 +26,16 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 
 @Composable
-fun MapScreen() {
+fun MapScreen(
+    focusLat: Double? = null,
+    focusLng: Double? = null,
+    focusTitle: String? = null
+) {
     val context = LocalContext.current
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -63,9 +69,9 @@ fun MapScreen() {
         position = CameraPosition.fromLatLngZoom(defaultLocation, 2f)
     }
 
-    // Move camera to user's location once permission is granted
+    // Move camera to user's location once permission is granted (only if no event focus)
     LaunchedEffect(hasLocationPermission) {
-        if (hasLocationPermission) {
+        if (hasLocationPermission && focusLat == null) {
             try {
                 val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
                 fusedLocationClient.lastLocation.addOnSuccessListener { location ->
@@ -81,6 +87,14 @@ fun MapScreen() {
         }
     }
 
+    // Move camera to the focused event location when provided
+    LaunchedEffect(focusLat, focusLng) {
+        if (focusLat != null && focusLng != null) {
+            cameraPositionState.position =
+                CameraPosition.fromLatLngZoom(LatLng(focusLat, focusLng), 15f)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
@@ -93,7 +107,14 @@ fun MapScreen() {
                 myLocationButtonEnabled = hasLocationPermission,
                 compassEnabled = true
             )
-        )
+        ) {
+            if (focusLat != null && focusLng != null) {
+                Marker(
+                    state = MarkerState(position = LatLng(focusLat, focusLng)),
+                    title = focusTitle
+                )
+            }
+        }
 
         if (!hasLocationPermission) {
             Text(
