@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,10 +62,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.axolotls.data.CalendarRepository
 import com.example.axolotls.data.CommunityEvent
+import com.example.axolotls.ui.theme.AxolotlsTheme
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -77,7 +80,8 @@ fun CommunityEventsScreen(
     favoriteIds: Set<String> = emptySet(),
     onFavoriteToggle: (String) -> Unit = {},
     onLogout: () -> Unit = {},
-    onNavigateToMap: (lat: Double, lng: Double, title: String) -> Unit = { _, _, _ -> }
+    onNavigateToMap: (lat: Double, lng: Double, title: String) -> Unit = { _, _, _ -> },
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val repository = remember { CalendarRepository() }
@@ -91,7 +95,7 @@ fun CommunityEventsScreen(
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        // Try to get user location for PredictHQ proximity search
+        // Try to get user location for proximity search
         var lat = 49.8951  // Default: Winnipeg
         var lng = -97.1384
         try {
@@ -323,7 +327,7 @@ fun CommunityEventsScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Holidays, weather alerts & local events",
+                    text = "Bzzz Find beehive nearby",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -343,6 +347,20 @@ fun CommunityEventsScreen(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false }
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("Settings") },
+                        onClick = {
+                            showMenu = false
+                            onNavigateToSettings()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text("Theme") },
                         onClick = {
@@ -659,9 +677,8 @@ fun CommunityEventCard(
 
             // Date/time row with source label on the right
             val sourceLabel = when {
-                event.id.startsWith("phq_") -> "PredictHQ"
                 event.htmlLink != null -> "Google Calendar"
-                else -> "Local"
+                else -> "data.winnipeg.ca"
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -723,3 +740,11 @@ private suspend fun geocodeLocation(context: Context, locationName: String): Pai
             null
         }
     }
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun CommunityEventsScreenPreview() {
+    AxolotlsTheme {
+        CommunityEventsScreen()
+    }
+}

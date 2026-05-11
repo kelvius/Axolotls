@@ -17,7 +17,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -43,16 +42,17 @@ import com.example.axolotls.R
 import com.example.axolotls.ui.theme.AxolotlsTheme
 
 @Composable
-fun LoginScreen(
+fun RegisterScreen(
     isLoading: Boolean,
     errorMessage: String?,
-    onLogin: (email: String, password: String) -> Unit,
-    onNavigateToRegister: () -> Unit,
-    onClearError: () -> Unit,
-    onGuestLogin: () -> Unit = {}
+    onRegister: (email: String, password: String) -> Unit,
+    onNavigateToLogin: () -> Unit,
+    onClearError: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var localError by remember { mutableStateOf("") }
 
     Box(
         modifier = Modifier
@@ -77,32 +77,33 @@ fun LoginScreen(
                 painter = painterResource(id = R.drawable.nearbee_logo),
                 contentDescription = "NearBee Logo",
                 modifier = Modifier
-                    .size(120.dp)
+                    .size(100.dp)
                     .clip(RoundedCornerShape(16.dp)),
                 contentScale = ContentScale.Fit
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "NearBee",
-                fontSize = 32.sp,
+                text = "Create Account",
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
 
             Text(
-                text = "Bzzz Find beehive nearby",
-                fontSize = 16.sp,
+                text = "Sign up to get started",
+                fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             OutlinedTextField(
                 value = email,
                 onValueChange = {
                     email = it
+                    localError = ""
                     onClearError()
                 },
                 label = { Text("Email") },
@@ -116,12 +117,13 @@ fun LoginScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = password,
                 onValueChange = {
                     password = it
+                    localError = ""
                     onClearError()
                 },
                 label = { Text("Password") },
@@ -136,23 +138,52 @@ fun LoginScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            if (!errorMessage.isNullOrEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = {
+                    confirmPassword = it
+                    localError = ""
+                    onClearError()
+                },
+                label = { Text("Confirm Password") },
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            val displayError = localError.ifEmpty { errorMessage ?: "" }
+            if (displayError.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = errorMessage,
+                    text = displayError,
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 14.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = { onLogin(email.trim(), password) },
+                onClick = {
+                    when {
+                        email.isBlank() || password.isBlank() -> localError = "All fields are required"
+                        password.length < 6 -> localError = "Password must be at least 6 characters"
+                        password != confirmPassword -> localError = "Passwords do not match"
+                        else -> onRegister(email.trim(), password)
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = !isLoading && email.isNotEmpty() && password.isNotEmpty(),
+                enabled = !isLoading,
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
@@ -165,36 +196,18 @@ fun LoginScreen(
                     )
                 } else {
                     Text(
-                        text = "Sign In",
+                        text = "Create Account",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedButton(
-                onClick = onGuestLogin,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                enabled = !isLoading
-            ) {
-                Text(
-                    text = "Continue as Guest",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            TextButton(onClick = onNavigateToRegister) {
+            TextButton(onClick = onNavigateToLogin) {
                 Text(
-                    text = "Don't have an account? Sign Up",
+                    text = "Already have an account? Sign In",
                     color = MaterialTheme.colorScheme.primary
                 )
             }
@@ -204,30 +217,14 @@ fun LoginScreen(
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun LoginScreenPreview() {
+fun RegisterScreenPreview() {
     AxolotlsTheme {
-        LoginScreen(
+        RegisterScreen(
             isLoading = false,
             errorMessage = null,
-            onLogin = { _, _ -> },
-            onNavigateToRegister = {},
-            onClearError = {},
-            onGuestLogin = {}
-        )
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun LoginScreenErrorPreview() {
-    AxolotlsTheme {
-        LoginScreen(
-            isLoading = false,
-            errorMessage = "Invalid email or password",
-            onLogin = { _, _ -> },
-            onNavigateToRegister = {},
-            onClearError = {},
-            onGuestLogin = {}
+            onRegister = { _, _ -> },
+            onNavigateToLogin = {},
+            onClearError = {}
         )
     }
 }

@@ -40,8 +40,7 @@ data class CalendarSource(
 )
 
 class CalendarRepository(
-    private val api: GoogleCalendarApiService = GoogleCalendarApiService.create(),
-    private val predictHqRepo: PredictHqRepository = PredictHqRepository()
+    private val api: GoogleCalendarApiService = GoogleCalendarApiService.create()
 ) {
     companion object {
         val API_KEY: String get() = BuildConfig.MAPS_API_KEY
@@ -378,8 +377,7 @@ class CalendarRepository(
     /**
      * Fetches upcoming events from all sources based on user location:
      * 1. Google Calendar API (country-specific holiday calendar)
-     * 2. PredictHQ (school holidays, public holidays, severe weather near user)
-     * 3. Curated Winnipeg events (only if user is within 100km of Winnipeg)
+     * 2. Curated Winnipeg events (only if user is within 100km of Winnipeg)
      * Merges, deduplicates, and sorts by start time.
      */
     suspend fun getCommunityEvents(
@@ -428,19 +426,10 @@ class CalendarRepository(
                 }
             }
 
-            // Fetch from PredictHQ (best effort, uses actual user coordinates)
-            val predictHqEvents = async {
-                try {
-                    predictHqRepo.getEvents(lat, lng)
-                } catch (_: Exception) {
-                    emptyList()
-                }
-            }
-
             // Curated events only if near Winnipeg
             val curatedEvents = getCuratedEvents(lat, lng)
 
-            val allEvents = (googleEvents.await() + predictHqEvents.await() + curatedEvents)
+            val allEvents = (googleEvents.await() + curatedEvents)
                 .distinctBy { it.title.lowercase().trim() }
                 .sortedBy { it.startTime }
 

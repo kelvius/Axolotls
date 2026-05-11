@@ -67,10 +67,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
 import com.example.axolotls.data.CommunityEvent
 import com.example.axolotls.data.EventRepository
 import com.example.axolotls.data.FavoritesManager
+import com.example.axolotls.ui.theme.AxolotlsTheme
 import com.google.android.gms.location.LocationServices
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -112,7 +114,8 @@ val dummyEvents = listOf(
 // HomeScreen: main container holding the bottom nav and all tab screens
 @Composable
 fun HomeScreen(
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateToSettings: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var searchQuery by remember { mutableStateOf("") }
@@ -223,7 +226,8 @@ fun HomeScreen(
                             communityFavoriteIds = favoritesManager.toggleCommunityFavorite(id)
                         },
                         onLogout = onLogout,
-                        onNavigateToMap = navigateToMap
+                        onNavigateToMap = navigateToMap,
+                        onNavigateToSettings = onNavigateToSettings
                     )
                 }
             }
@@ -635,7 +639,7 @@ fun NearbyEventsScreen(
                 )
                 Text(
                     text = if (events.firstOrNull()?.distanceKm != null)
-                        "Nearby Events" else "Upcoming Events",
+                        "Bzzz Find beehive nearby" else "Upcoming Events",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -896,3 +900,14 @@ private suspend fun geocodeLocation(context: Context, locationName: String): Pai
             null
         }
     }
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun HomeScreenPreview() {
+    AxolotlsTheme {
+        HomeScreen(
+            onLogout = {},
+            onNavigateToSettings = {}
+        )
+    }
+}
