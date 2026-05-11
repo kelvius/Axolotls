@@ -40,7 +40,8 @@ data class CalendarSource(
 )
 
 class CalendarRepository(
-    private val api: GoogleCalendarApiService = GoogleCalendarApiService.create()
+    private val api: GoogleCalendarApiService = GoogleCalendarApiService.create(),
+    private val placesRepo: PlacesRepository = PlacesRepository()
 ) {
     companion object {
         val API_KEY: String get() = BuildConfig.MAPS_API_KEY
@@ -377,7 +378,8 @@ class CalendarRepository(
     /**
      * Fetches upcoming events from all sources based on user location:
      * 1. Google Calendar API (country-specific holiday calendar)
-     * 2. Curated Winnipeg events (only if user is within 100km of Winnipeg)
+     * 2. Google Places API (nearby parks, cafes, and landmarks)
+     * 3. Curated Winnipeg events (only if user is within 100km of Winnipeg)
      * Merges, deduplicates, and sorts by start time.
      */
     suspend fun getCommunityEvents(
@@ -426,10 +428,19 @@ class CalendarRepository(
                 }
             }
 
+            // Fetch nearby parks & cafes from Google Places API (best effort)
+            val placesEvents = async {
+                try {
+                    placesRepo.getNearbySpots(lat, lng)
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            }
+
             // Curated events only if near Winnipeg
             val curatedEvents = getCuratedEvents(lat, lng)
 
-            val allEvents = (googleEvents.await() + curatedEvents)
+            val allEvents = (googleEvents.await() + placesEvents.await() + curatedEvents)
                 .distinctBy { it.title.lowercase().trim() }
                 .sortedBy { it.startTime }
 

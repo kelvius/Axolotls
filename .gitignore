@@ -34,3 +34,4 @@ build/
 # Credentials (NEVER commit tokens/keys)
 credentials.json
 secrets.properties
+google-services.json

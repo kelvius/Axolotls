@@ -677,6 +677,7 @@ fun CommunityEventCard(
 
             // Date/time row with source label on the right
             val sourceLabel = when {
+                event.id.startsWith("places_") -> "Google Places"
                 event.htmlLink != null -> "Google Calendar"
                 else -> "data.winnipeg.ca"
             }
